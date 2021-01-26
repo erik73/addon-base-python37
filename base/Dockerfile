@@ -2,133 +2,178 @@ ARG BUILD_FROM=ghcr.io/hassio-addons/base/amd64:9.1.0
 # hadolint ignore=DL3006
 FROM ${BUILD_FROM}
 
-# Environment variables
-ENV \
-    PATH="/usr/local/bin:$PATH" \
-    GPG_KEY="E3FF2839C048B25C084DEBE9B26995E310250568" \
-    PYTHON_VERSION="3.8.7" \
-    PYTHON_PIP_VERSION="20.3.3"
+# ensure local python is preferred over distribution python
+ENV PATH /usr/local/bin:$PATH
 
 # Set shell
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+SHELL ["/bin/ash", "-o", "pipefail", "-c"]
 
-# Install base system
-# hadolint ignore=DL3003,SC2155
-RUN \
-    apk add --no-cache --virtual .build-dependencies \
-        bzip2-dev=1.0.8-r1 \
-        coreutils=8.32-r2 \
-        dpkg-dev=1.20.6-r0 \
-        dpkg=1.20.6-r0 \
-        expat-dev=2.2.10-r1 \
-        findutils=4.8.0-r0 \
-        gcc=10.2.1_pre1-r3 \
-        gdbm-dev=1.19-r0 \
-        gnupg=2.2.27-r0 \
-        libc-dev=0.7.2-r3 \
-        libffi-dev=3.3-r2 \
-        libnsl-dev=1.3.0-r0 \
-        libtirpc-dev=1.3.1-r0 \
-        linux-headers=5.7.8-r0 \
-        make=4.3-r0 \
-        ncurses-dev=6.2_p20210109-r0 \
-        openssl-dev=1.1.1i-r0 \
-        pax-utils=1.2.8-r0 \
-        readline-dev=8.1.0-r0 \
-        sqlite-dev=3.34.1-r0 \
-        tar=1.33-r1 \
-        tcl-dev=8.6.10-r1 \
-        tk-dev=8.6.10-r1 \
-        tk=8.6.10-r1 \
-        util-linux-dev=2.36.1-r1 \
-        xz-dev=5.2.5-r0 \
-        xz=5.2.5-r0 \
-        zlib-dev=1.2.11-r3 \
+# install ca-certificates so that HTTPS works consistently
+# the other runtime dependencies for Python are installed later
+RUN apk add --no-cache ca-certificates
+
+ENV GPG_KEY 0D96DF4D4110E5C43FBFB17F2D347EA6AA65421D
+ENV PYTHON_VERSION 3.7.9
+
+COPY *.patch /usr/src/
+RUN set -ex \
+    && apk add --no-cache --virtual .fetch-deps \
+        gnupg \
+        openssl \
+        tar \
+        xz \
     \
-    && curl -J -L -o /tmp/python.tar.xz \
-        "https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz" \
-    && curl -J -L -o /tmp/python.tar.xz.asc \
-        "https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz.asc" \
-    \
+    && curl -L -o python.tar.xz "https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz" \
+    && curl -L -o python.tar.xz.asc "https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz.asc" \
     && export GNUPGHOME="$(mktemp -d)" \
-    && gpg \
-        --batch \
-        --keyserver ha.pool.sks-keyservers.net \
-        --recv-keys "$GPG_KEY" \
-    && gpg \
-        --batch \
-        --verify /tmp/python.tar.xz.asc /tmp/python.tar.xz \
+    && echo "disable-ipv6" >> "$GNUPGHOME/dirmngr.conf" \
+    && gpg --batch --keyserver ha.pool.sks-keyservers.net --recv-keys "$GPG_KEY" \
+    && gpg --batch --verify python.tar.xz.asc python.tar.xz \
     && { command -v gpgconf > /dev/null && gpgconf --kill all || :; } \
-    \
+    && rm -rf "$GNUPGHOME" python.tar.xz.asc \
     && mkdir -p /usr/src/python \
-    && tar -xJC /usr/src/python --strip-components=1 -f /tmp/python.tar.xz \
-    && cd /usr/src/python \
+    && tar -xJC /usr/src/python --strip-components=1 -f python.tar.xz \
+    && rm python.tar.xz \
     \
+    && apk add --no-cache --virtual .build-deps  \
+        patch \
+        bzip2-dev \
+        coreutils \
+        dpkg-dev dpkg \
+        expat-dev \
+        findutils \
+        build-base \
+        gdbm-dev \
+        libc-dev \
+        libffi-dev \
+        libnsl-dev \
+        openssl \
+        openssl-dev \
+        libtirpc-dev \
+        linux-headers \
+        make \
+        ncurses-dev \
+        pax-utils \
+        readline-dev \
+        sqlite-dev \
+        tcl-dev \
+        tk \
+        tk-dev \
+        xz-dev \
+        zlib-dev \
+        bluez-dev \
+# add build deps before removing fetch deps in case there's overlap
+    && apk del .fetch-deps \
+    \
+    && for i in /usr/src/*.patch; do \
+        patch -d /usr/src/python -p 1 < "${i}"; done \
+    && cd /usr/src/python \
     && gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)" \
     && ./configure \
         --build="$gnuArch" \
         --enable-loadable-sqlite-extensions \
         --enable-optimizations \
-        --enable-option-checking=fatal \
         --enable-shared \
+        --with-lto \
         --with-system-expat \
         --with-system-ffi \
         --without-ensurepip \
-    \
     && make -j "$(nproc)" \
+        LDFLAGS="-Wl,--strip-all" \
+# set thread stack size to 1MB so we don't segfault before we hit sys.getrecursionlimit()
+# https://github.com/alpinelinux/aports/commit/2026e1259422d4e0cf92391ca2d3844356c649d0
         EXTRA_CFLAGS="-DTHREAD_STACK_SIZE=0x100000" \
+# setting PROFILE_TASK makes "--enable-optimizations" reasonable: https://bugs.python.org/issue36044
+		PROFILE_TASK='-m test.regrtest --pgo \
+            test_asyncio \
+            test_array \
+            test_base64 \
+            test_binascii \
+            test_binop \
+            test_bisect \
+            test_bytes \
+            test_cmath \
+            test_codecs \
+            test_collections \
+            test_complex \
+            test_dataclasses \
+            test_datetime \
+            test_decimal \
+            test_difflib \
+            test_embed \
+            test_float \
+            test_fstring \
+            test_functools \
+            test_generators \
+            test_hashlib \
+            test_heapq \
+            test_int \
+            test_itertools \
+            test_json \
+            test_long \
+            test_math \
+            test_memoryview \
+            test_operator \
+            test_ordered_dict \
+            test_pickle \
+            test_pprint \
+            test_re \
+            test_set \
+            test_sqlite \
+            test_statistics \
+            test_struct \
+            test_tabnanny \
+            test_time \
+            test_unicode \
+            test_xml_etree \
+            test_xml_etree_c \
+		' \
     && make install \
     \
-    && find /usr/local \
-        -type f \
-        -executable \
-        -not \( -name '*tkinter*' \) \
-        -exec scanelf \
-        --needed \
-        --nobanner \
-        --format '%n#p' '{}' ';' \
-            | tr ',' '\n' \
-            | sort -u \
-            | awk 'system("[ -e /usr/local/lib/" $1 " ]") == 0 { next } { print "so:" $1 }' \
-            | xargs -rt apk add --no-cache --virtual .python-rundeps \
-    \
+	&& find /usr/local -type f -executable -not \( -name '*tkinter*' \) -exec scanelf --needed --nobanner --format '%n#p' '{}' ';' \
+		| tr ',' '\n' \
+		| sort -u \
+		| awk 'system("[ -e /usr/local/lib/" $1 " ]") == 0 { next } { print "so:" $1 }' \
+		| xargs -rt apk add --no-cache --virtual .python-rundeps \
+	&& apk del .build-deps \
+	\
     && find /usr/local -depth \
         \( \
-            \( -type d -a \( -name test -o -name tests \) \) \
-            -o \
-            \( -type f -a \( -name '*.pyc' -o -name '*.pyo' \) \) \
+            -type d -a \( -name test -o -name tests \) \
         \) -exec rm -rf '{}' + \
-    \
-    && cd /usr/local/bin \
+    && rm -rf /usr/src/python \
+    && rm -f /usr/src/*.patch
+
+# make some useful symlinks that are expected to exist
+RUN cd /usr/local/bin \
     && ln -s idle3 idle \
     && ln -s pydoc3 pydoc \
     && ln -s python3 python \
-    && ln -s python3-config python-config \
+    && ln -s python3-config python-config
+
+# if this is called "PIP_VERSION", pip explodes with "ValueError: invalid truth value '<VERSION>'"
+ENV PYTHON_PIP_VERSION 20.2.4
+
+RUN set -ex; \
     \
-    && curl -J -L -o /tmp/get-pip.py \
-        'https://bootstrap.pypa.io/get-pip.py' \
+    apk add --no-cache --virtual .fetch-deps openssl; \
     \
-    && python /tmp/get-pip.py \
+    curl -L -o get-pip.py 'https://bootstrap.pypa.io/get-pip.py'; \
+    \
+    apk del .fetch-deps; \
+    \
+    python get-pip.py \
         --disable-pip-version-check \
         --no-cache-dir \
         "pip==$PYTHON_PIP_VERSION" \
+    ; \
+    pip --version; \
     \
-    && find /usr/local -depth \
+    find /usr/local -depth \
         \( \
-            \( -type d -a \( -name test -o -name tests \) \) \
-            -o \
-            \( -type f -a \( -name '*.pyc' -o -name '*.pyo' \) \) \
-        \) -exec rm -rf '{}' +  \
-    \
-    && apk del --no-cache --purge .build-dependencies \
-    && rm -f -r \
-        /usr/src \
-        "$GNUPGHOME" \
-        /tmp/* \
-    \
-    && python3 --version \
-    && pip3 --version
-
+            -type d -a \( -name test -o -name tests \) \
+        \) -exec rm -rf '{}' +; \
+    rm -f get-pip.py
 # Entrypoint & CMD
 ENTRYPOINT ["/init"]
 
