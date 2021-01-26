@@ -5,9 +5,9 @@ FROM ${BUILD_FROM}
 # Environment variables
 ENV \
     PATH="/usr/local/bin:$PATH" \
-    GPG_KEY="0D96DF4D4110E5C43FBFB17F2D347EA6AA65421D" \
-    PYTHON_VERSION="3.7.9" \
-    PYTHON_PIP_VERSION="20.2.4"
+    GPG_KEY="E3FF2839C048B25C084DEBE9B26995E310250568" \
+    PYTHON_VERSION="3.8.7" \
+    PYTHON_PIP_VERSION="20.3.3"
 
 # Set shell
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
