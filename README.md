@@ -17,13 +17,7 @@ Docker Python 3.7.9 base image.
 
 ## About
 
-These are the Python3 add-on base images for the
-Home Assistant Community Add-ons and are created to give the project more
-control over the Python used.
-
-Main reason for this, is because in Alpine 3.9 the shipped Python was broken
-for aarch64 based systems and was also still on Python 3.6 instead of the
-Python 3.7 (at time of creating this initial image).
+Pyton 3.7 image for addons.
 
 This follows Home Assistant's base images, which made the same move.
 
