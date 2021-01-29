@@ -24,7 +24,7 @@ RUN \
     set -o pipefail \
     \
     && apk add --no-cache --virtual .build-dependencies \
-        tar=1.33-r1 \
+        tar \
     \
     && apk add --no-cache \
         libcrypto1.1 \
@@ -33,10 +33,10 @@ RUN \
         musl\
     \
     && apk add --no-cache \
-        bash= \
-        curl= \
-        jq= \
-        tzdata= \
+        bash \
+        curl \
+        jq \
+        tzdata \
     \
     && S6_ARCH="${BUILD_ARCH}" \
     && if [ "${BUILD_ARCH}" = "i386" ]; then S6_ARCH="x86"; fi \
