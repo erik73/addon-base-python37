@@ -10,7 +10,7 @@ ENV \
     S6_BEHAVIOUR_IF_STAGE2_FAILS=2 \
     S6_CMD_WAIT_FOR_SERVICES=1 \
     TERM="xterm-256color" \
-    PATH /usr/local/bin:$PATH
+    PATH=/usr/local/bin:$PATH
 
 # Copy root filesystem
 COPY rootfs /
