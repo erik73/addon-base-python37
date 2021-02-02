@@ -251,7 +251,7 @@ LABEL \
     maintainer="Erik Hilton <erikhilton73@gmail.com>" \
     org.opencontainers.image.title="Addon Python base for ${BUILD_ARCH}" \
     org.opencontainers.image.description="Home Assistant Add-on: ${BUILD_ARCH} Python base image" \
-    org.opencontainers.image.vendor="erik73 Add-ons" \
+    org.opencontainers.image.vendor="Erik73 Add-ons" \
     org.opencontainers.image.authors="Erik Hilton <erikhilton73@gmail.com" \
     org.opencontainers.image.licenses="MIT" \
     org.opencontainers.image.url="https://github.com/erik73/hassio-addons" \
