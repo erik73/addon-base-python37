@@ -17,7 +17,7 @@ Docker Python 3.7.9 base image.
 
 ## About
 
-Pyton 3.7 image for addons.
+Python 3.7 image for addons.
 
 This follows Home Assistant's base images, which made the same move.
 
