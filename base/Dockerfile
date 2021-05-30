@@ -49,7 +49,7 @@ RUN \
     && mkdir -p /etc/services.d \
     \
     && curl -J -L -o /tmp/bashio.tar.gz \
-        "https://github.com/hassio-addons/bashio/archive/v0.13.0.tar.gz" \
+        "https://github.com/hassio-addons/bashio/archive/v0.13.1.tar.gz" \
     && mkdir /tmp/bashio \
     && tar zxvf \
         /tmp/bashio.tar.gz \
@@ -59,7 +59,7 @@ RUN \
     && ln -s /usr/lib/bashio/bashio /usr/bin/bashio \
     \
     && curl -L -s -o /usr/bin/tempio \
-        "https://github.com/home-assistant/tempio/releases/download/2021.01.0/tempio_${BUILD_ARCH}" \
+        "https://github.com/home-assistant/tempio/releases/download/2021.05.0/tempio_${BUILD_ARCH}" \
     && chmod a+x /usr/bin/tempio \
     \
     && apk del --no-cache --purge .build-dependencies \
