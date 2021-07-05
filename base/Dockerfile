@@ -70,7 +70,7 @@ RUN \
 # the other runtime dependencies for Python are installed later
 RUN apk add --no-cache ca-certificates
 
-ENV GPG_KEY E3FF2839C048B25C084DEBE9B26995E310250568
+ENV GPG_KEY 0D96DF4D4110E5C43FBFB17F2D347EA6AA65421D
 ENV PYTHON_VERSION 3.7.10
 
 COPY *.patch /usr/src/
@@ -210,7 +210,7 @@ RUN cd /usr/local/bin \
     && ln -s python3-config python-config
 
 # if this is called "PIP_VERSION", pip explodes with "ValueError: invalid truth value '<VERSION>'"
-ENV PYTHON_PIP_VERSION 21.0.1
+ENV PYTHON_PIP_VERSION 20.2.4
 
 RUN set -ex; \
     \
